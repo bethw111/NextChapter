@@ -1,6 +1,6 @@
 {
-    "name": "nfl_league_app",
-    "short_name": "nfl_league_app",
+    "name": "nextchapter",
+    "short_name": "nextchapter",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

@@ -1,4 +1,4 @@
-package com.example.nfl_league_app
+package com.example.nextchapter
 
 import io.flutter.embedding.android.FlutterActivity
 

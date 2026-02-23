@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "nfl_league_app" "\0"
+            VALUE "FileDescription", "nextchapter" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "nfl_league_app" "\0"
+            VALUE "InternalName", "nextchapter" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2025 com.example. All rights reserved." "\0"
-            VALUE "OriginalFilename", "nfl_league_app.exe" "\0"
-            VALUE "ProductName", "nfl_league_app" "\0"
+            VALUE "OriginalFilename", "nextchapter.exe" "\0"
+            VALUE "ProductName", "nextchapter" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END
