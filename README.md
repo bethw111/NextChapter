@@ -1,6 +1,6 @@
-# nfl_league_app
+# NextChapter
 
-A new Flutter project.
+Beth Warden's Final Year Project.
 
 ## Getting Started
 
