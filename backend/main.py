@@ -20,12 +20,16 @@ def recommend(query: str):
 class PreferenceRequest(BaseModel):
     mood: str
     genre: str
-    favorite_books: str
+    favourite_books: str
     recent_reads: str
     pace: str
     length: str
 
 @app.post("/recommend_by_preferences")
 def recommend_by_preferences(request: PreferenceRequest):
-    query = f"{request.genre} {request.mood} {request.pace} {request.length} similar to {request.favorite_books} {request.recent_reads}"
-    return recommender.recommend(query)
+    #query = f"{request.genre} {request.mood} {request.pace} {request.length} similar to {request.favourite_books} {request.recent_reads}"
+    #return recommender.recommend(query)
+    return recommender.recommend(
+        favourite_book=request.favourite_books,
+        genre=request.genre
+    )
