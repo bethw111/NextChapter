@@ -23,7 +23,7 @@ class GoogleBooksRecommender:
                 "title": info.get("title", ""),
                 "authors": info.get("authors", []),
                 "description": info.get("description", ""),
-                "categories": " ".join(info.get("categories", []))
+                "categories": info.get("categories", [])
             })
         return books
     
@@ -37,7 +37,7 @@ class GoogleBooksRecommender:
     def content_similarity(self, books):
         #combine description and categories into one string
         texts = [
-            (b["description"] or "") + " " + b["categories"]
+            " ".join(b["categories"]) * 3 + " " + (b["description"] or "")
             for b in books
         ]
         #convert text into numbers
@@ -50,13 +50,14 @@ class GoogleBooksRecommender:
         return similarity
     
     #NEW
-    def compute_score(self, base_book, book, similarity, genre):
+    def compute_score(self, base_book, book, similarity, genre, mood="", pace="", length=""):
         score = similarity
+        book_categories = " ".join(book["categories"]).lower()
         #genre boost
-        if genre.lower() in book["categories"].lower():
+        if genre.lower() in " ".join(book["categories"]).lower():
             score += 0.3
         #author boost
-        if book["authors"] == base_book["authors"]:
+        if set(book["authors"]) & set(base_book["authors"]):
             score += 0.4
         #penalise missing
         if not book["categories"]:
@@ -65,7 +66,8 @@ class GoogleBooksRecommender:
         return score
 
     #generate recommendations
-    def recommend(self, favourite_book, genre, max_results=5):
+    def recommend(self, favourite_book, genre, mood="", pace="", length="", max_results=5):
+        query = f"{genre} books similar to {favourite_book}"
         books = self.search_books(favourite_book, max_results=40)
 
         #NEW
@@ -89,14 +91,13 @@ class GoogleBooksRecommender:
             
             book = books[idx]
 
-            final_score = self.compute_score(base_book, book, sim, genre)
+            final_score = self.compute_score(base_book, book, sim, genre, mood, pace, length)
             results.append({
                 "title": book["title"],
                 "authors": book["authors"],
                 "score": float(round(final_score, 3))
             })
         return sorted(results, key=lambda x: x["score"], reverse=True)[:max_results]    
-
 
 
         #similarity = self.content_similarity(books)

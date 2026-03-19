@@ -29,7 +29,11 @@ class PreferenceRequest(BaseModel):
 def recommend_by_preferences(request: PreferenceRequest):
     #query = f"{request.genre} {request.mood} {request.pace} {request.length} similar to {request.favourite_books} {request.recent_reads}"
     #return recommender.recommend(query)
+    query = f"{request.genre} {request.mood} books like {request.favourite_books}"
     return recommender.recommend(
         favourite_book=request.favourite_books,
-        genre=request.genre
+        genre=request.genre,
+        mood = request.mood,
+        pace=request.pace,
+        length=request.length
     )
