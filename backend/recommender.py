@@ -35,15 +35,18 @@ class GoogleBooksRecommender:
             params = {"q": q, "maxResults": max_results}
             data = requests.get(self.BASE_URL, params=params).json()
 
-        #extract key info for each book
-        for item in data.get("items", []):
-            info = item["volumeInfo"]
-            books.append({
-                "title": info.get("title", ""),
-                "authors": info.get("authors", []),
-                "description": info.get("description", ""),
-                "categories": info.get("categories", [])
-            })
+            #extract key info for each book
+            for item in data.get("items", []):
+                info = item["volumeInfo"]
+                thumbnail = info.get("imageLinks", {}).get("thumbnail", "")
+                thumbnail = thumbnail.replace("http://", "https://")
+                books.append({
+                    "title": info.get("title", ""),
+                    "authors": info.get("authors", []),
+                    "description": info.get("description", ""),
+                    "categories": info.get("categories", []),
+                    "thumbnail": thumbnail
+                })
         
         unique = {b["title"]: b for b in books}
         return list(unique.values())
@@ -67,7 +70,8 @@ class GoogleBooksRecommender:
         ]
         #convert text into numbers
         embeddings = self.model.encode(texts)
-        return cosine_similarity(embeddings)
+        similarity = cosine_similarity(embeddings)
+        return similarity.tolist()
     
     #feature engineering
     def extract_features(self, base_book, book, similarity, genre, mood="", pace="", length=""):
@@ -99,14 +103,18 @@ class GoogleBooksRecommender:
     def compute_label(self, sim, genre_match, same_author):
         score = 0
 
-        if sim > 0.5:
-            score += 1
-        if genre_match:
-            score += 1
-        if same_author:
-            score += 1
-
-        return 1 if score >= 1 else 0 
+        if sim > 0.6 and genre_match:
+            return 1
+        if sim > 0.75:
+            return 1
+        return 0
+        #if sim > 0.5:
+            #score += 1
+        #if genre_match:
+            #score += 1
+        #if same_author:
+            #score += 1
+        #return 1 if score >= 1 else 0 
 
     #build dataset
     def build_dataset(self, books, similarity_matrix, target_idx, genre, mood="", pace="", length=""):
@@ -142,7 +150,8 @@ class GoogleBooksRecommender:
             X.append(features)
             y.append(label)
 
-        return np.array(X), np.array(y)
+        #return np.array(X), np.array(y)
+        return X, y
     
     #train and evaluate model
     def train_model(self, X, y):
@@ -216,7 +225,12 @@ class GoogleBooksRecommender:
                 results.append({
                     "title": book["title"],
                     "authors": book["authors"],
-                    "score": float(similarity[target_idx][i])
+                    "thumbnail": book.get("thumbnail", ""),
+                    "score": float(similarity[target_idx][i]),
+                    "explanation": {
+                        "similarity": round(similarity[target_idx][i], 2),
+                        "note": "based on similarity, fallback"
+                    }
                 })
             return sorted(results, key=lambda x: x["score"], reverse=True)[:max_results]
 
@@ -230,14 +244,28 @@ class GoogleBooksRecommender:
             sim = similarity[target_idx][i]
             features = self.extract_features(base_book, book, sim, genre, mood, pace, length)
 
-            prob = self.clf.predict_proba([features])[0][1]
+            prob = float(self.clf.predict_proba([features])[0][1])
 
-            final_score = 0.7 * prob + 0.3 * sim
+            final_score = float(0.7 * prob + 0.3 * sim)
+
+            desc = (book["description"] or "").lower()
+
+            genre_match = int(genre.lower() in " ".join(book["categories"]).lower())
+            same_author = int(bool(set(book["authors"]) & set(base_book["authors"])))
 
             results.append({
                 "title": book["title"],
                 "authors": book["authors"],
-                "score": float(round(final_score, 3))
+                "thumbnail": book.get("thumbnail", ""),
+                "score": float(round(final_score, 3)),
+                "explanation": {
+                    "similarity": round(sim, 2),
+                    "genre_match": bool(genre_match),
+                    "same_author": bool(same_author),
+                    "matched_mood": mood.lower() in desc,
+                    "matched_pace": pace.lower() in desc,
+                    "matched_length": length.lower() in desc
+                }
             })
 
         return sorted(results, key=lambda x: x["score"], reverse=True)[:max_results]
