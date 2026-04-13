@@ -38,6 +38,12 @@ class GoogleBooksRecommender:
             #extract key info for each book
             for item in data.get("items", []):
                 info = item["volumeInfo"]
+                industry_identifiers = info.get("industryIdentifiers", [])
+                isbn = next(
+                    (i["identifier"] for i in industry_identifiers
+                     if i.get("type") in ["ISBN_13", "ISBN_10"]),
+                     ""
+                )
                 thumbnail = info.get("imageLinks", {}).get("thumbnail", "")
                 thumbnail = thumbnail.replace("http://", "https://")
                 books.append({
@@ -45,10 +51,16 @@ class GoogleBooksRecommender:
                     "authors": info.get("authors", []),
                     "description": info.get("description", ""),
                     "categories": info.get("categories", []),
-                    "thumbnail": thumbnail
+                    "thumbnail": thumbnail,
+                    "isbn": isbn
                 })
         
-        unique = {b["title"]: b for b in books}
+        #unique = {b["title"]: b for b in books}
+        unique = {}
+        for b in books:
+            key = b["isbn"] if b["isbn"] else b["title"]
+            if key not in unique :
+                unique[key] = b
         return list(unique.values())
     
     #find favourite book index
@@ -57,6 +69,9 @@ class GoogleBooksRecommender:
             if favourite_book.lower() in book["title"].lower():
                 return i
         return 0
+    
+    def clean_title(self, title):
+        return title.lower().strip()
     
     def content_similarity(self, books):
         #combine description and categories into one string
@@ -217,10 +232,16 @@ class GoogleBooksRecommender:
         X, y = self.build_dataset(books, similarity, target_idx, genre, mood, pace, length)
         self.train_model(X,y)
 
+        base_book = books[target_idx]
+        base_isbn = base_book.get("isbn", "")
+        base_title = self.clean_title(base_book.get("title", ""))
+
         if self.clf is None:
             results = []
             for i, book in enumerate(books):
                 if i == target_idx:
+                    continue
+                if book.get("isbn") == base_isbn and base_isbn != "":
                     continue
                 results.append({
                     "title": book["title"],
@@ -234,17 +255,32 @@ class GoogleBooksRecommender:
                 })
             return sorted(results, key=lambda x: x["score"], reverse=True)[:max_results]
 
-        base_book = books[target_idx]
         results = []
 
         for i, book in enumerate(books):
+            #book_isbn = book.get("isbn", "")
+            book_title = self.clean_title(book.get("title", ""))
             if i == target_idx:
+                continue
+
+            if book.get("isbn") == base_isbn and base_isbn != "":
+                continue
+
+            if base_title == book_title:
+                continue
+
+            if base_title in book_title or book_title in base_title:
                 continue
 
             sim = similarity[target_idx][i]
             features = self.extract_features(base_book, book, sim, genre, mood, pace, length)
 
-            prob = float(self.clf.predict_proba([features])[0][1])
+            #prob = float(self.clf.predict_proba([features])[0][1])
+            probs = self.clf.predict_proba([features])[0]
+            if len (probs) > 1:
+                prob = float(probs[1])
+            else:
+                prob = float(probs[0])
 
             final_score = float(0.7 * prob + 0.3 * sim)
 
