@@ -2,6 +2,8 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 from recommender import GoogleBooksRecommender
+import requests
+from pydantic import BaseModel
 
 app = FastAPI()
 app.add_middleware(
@@ -13,9 +15,25 @@ app.add_middleware(
 )
 recommender = GoogleBooksRecommender()
 
-@app.get("/recommend")
-def recommend(query: str):
-    return recommender.recommend(query)
+@app.get("/search")
+def search_books(query: str):
+    url = "https://www.googleapis.com/books/v1/volumes"
+    params = {"q": query, "maxResults": 5}
+
+    res = requests.get(url, params=params).json()
+
+    books = []
+
+    for item in res.get("items", []):
+        info = item.get("volumeInfo", {})
+
+        books.append({
+            "title": info.get("title", ""),
+            "authors": info.get("authors", []),
+            "thumbnail": info.get("imageLinks", {}).get("thumbnail", "")
+        })
+
+    return books
 
 class PreferenceRequest(BaseModel):
     mood: str
@@ -27,9 +45,6 @@ class PreferenceRequest(BaseModel):
 
 @app.post("/recommend_by_preferences")
 def recommend_by_preferences(request: PreferenceRequest):
-    #query = f"{request.genre} {request.mood} {request.pace} {request.length} similar to {request.favourite_books} {request.recent_reads}"
-    #return recommender.recommend(query)
-    query = f"{request.genre} {request.mood} books like {request.favourite_books}"
     return recommender.recommend(
         favourite_book=request.favourite_books,
         genre=request.genre,

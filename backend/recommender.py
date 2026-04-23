@@ -1,5 +1,6 @@
 import requests
 import numpy as np
+import pandas as pd
 
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
@@ -15,167 +16,159 @@ class GoogleBooksRecommender:
     BASE_URL = "https://www.googleapis.com/books/v1/volumes"
 
     #NEW
-    def __init__(self):
-        self.model = SentenceTransformer('all-MiniLM-L6-v2')
-        self.clf = None
+    def __init__(self, dataset_path="cleaned_books.csv", embeddings_path="book_embeddings.npy"):
+        self.df = pd.read_csv(dataset_path)
+        self.embeddings = np.load(embeddings_path)
+        self.model = None
+        #self.model = SentenceTransformer('all-MiniLM-L6-v2')
+        #self.clf = None
 
+    def find_book_index(self, title):
+        title = str(title).lower()
+
+        best_idx = 0
+        best_score = 0
+
+        for i, row in self.df.iterrows():
+            t = str(row["Title"]).lower()
+
+            score = 0
+            if title == t:
+                return i
+            if title in t or t in title:
+                score +=2
+            if score > best_score:
+                best_score = score
+                best_idx = i
+        return best_idx 
+    
     #take search query and calls API using requests
-    def search_books(self, query, max_results=40):
+    #def search_books(self, query, max_results=40):
 
-        queries = [
-            query,
-            f"{query} similar books",
-            f"best {query} books",
-            f"{query} novels"
-        ]
+     #   queries = [
+      #      query,
+       #     f"{query} similar books",
+        #    f"best {query} books",
+         #   f"{query} novels"
+        #]
+#
+        #books = []
 
-        books = []
-
-        for q in queries:
-            params = {"q": q, "maxResults": max_results}
-            data = requests.get(self.BASE_URL, params=params).json()
+        #for q in queries:
+         #   params = {"q": q, "maxResults": max_results}
+          #  data = requests.get(self.BASE_URL, params=params).json()
 
             #extract key info for each book
-            for item in data.get("items", []):
-                info = item["volumeInfo"]
-                industry_identifiers = info.get("industryIdentifiers", [])
-                isbn = next(
-                    (i["identifier"] for i in industry_identifiers
-                     if i.get("type") in ["ISBN_13", "ISBN_10"]),
-                     ""
-                )
-                thumbnail = info.get("imageLinks", {}).get("thumbnail", "")
-                thumbnail = thumbnail.replace("http://", "https://")
-                books.append({
-                    "title": info.get("title", ""),
-                    "authors": info.get("authors", []),
-                    "description": info.get("description", ""),
-                    "categories": info.get("categories", []),
-                    "thumbnail": thumbnail,
-                    "isbn": isbn
-                })
+           # for item in data.get("items", []):
+            #    info = item["volumeInfo"]
+             #   industry_identifiers = info.get("industryIdentifiers", [])
+              #  isbn = next(
+               #     (i["identifier"] for i in industry_identifiers
+                #     if i.get("type") in ["ISBN_13", "ISBN_10"]),
+                 #    ""
+                #)
+                #thumbnail = info.get("imageLinks", {}).get("thumbnail", "")
+                #thumbnail = thumbnail.replace("http://", "https://")
+                #books.append({
+                 #   "title": info.get("title", ""),
+                  #  "authors": info.get("authors", []),
+                   # "description": info.get("description", ""),
+                    #"categories": info.get("categories", []),
+                    #"thumbnail": thumbnail,
+                    #"isbn": isbn
+                #})
         
         #unique = {b["title"]: b for b in books}
-        unique = {}
-        for b in books:
-            key = b["isbn"] if b["isbn"] else b["title"]
-            if key not in unique :
-                unique[key] = b
-        return list(unique.values())
+        #unique = {}
+        #for b in books:
+         #   key = b["isbn"] if b["isbn"] else b["title"]
+          #  if key not in unique :
+           #     unique[key] = b
+        #return list(unique.values())
     
     #find favourite book index
-    def best_match(self, books, favourite_book):
-        for i, book in enumerate(books):
-            if favourite_book.lower() in book["title"].lower():
-                return i
-        return 0
-    
-    def clean_title(self, title):
-        return title.lower().strip()
-    
-    def content_similarity(self, books):
-        #combine description and categories into one string
-        texts = [
-            f"""
-            Title: {b['title']}
-            Categories: {' '.join(b['categories'])}
-            Description: {b['description']}
-            """
-            for b in books
-        ]
-        #convert text into numbers
-        embeddings = self.model.encode(texts)
-        similarity = cosine_similarity(embeddings)
-        return similarity.tolist()
+   # def best_match(self, books, favourite_book):
+    #    for i, book in enumerate(books):
+     #       if favourite_book.lower() in book["title"].lower():
+      #          return i
+       # return 0
     
     #feature engineering
-    def extract_features(self, base_book, book, similarity, genre, mood="", pace="", length=""):
-        features = []
+    #def extract_features(self, base_book, book, similarity, genre, mood="", pace="", length=""):
+        #features = []
 
         #semantic similarity
-        features.append(similarity)
+        #features.append(similarity)
 
         #genre match
-        genre_match = int(genre.lower() in " ".join(book["categories"]).lower())
-        features.append(genre_match)
+        #genre_match = int(genre.lower() in " ".join(book["categories"]).lower())
+        #features.append(genre_match)
 
         #same author
-        same_author = int(bool(set(book["authors"]) & set(base_book["authors"])))
-        features.append(same_author)
+        #same_author = int(bool(set(book["authors"]) & set(base_book["authors"])))
+        #features.append(same_author)
 
         #has categories
-        has_category = int(bool(book["categories"]))
-        features.append(has_category)
+        #has_category = int(bool(book["categories"]))
+        #features.append(has_category)
 
-        desc = (book["description"] or "").lower()
+        #desc = (book["description"] or "").lower()
 
-        features.append(int(mood.lower() in desc))
-        features.append(int(pace.lower() in desc))
-        features.append(int(length.lower() in desc))
+        #features.append(int(mood.lower() in desc))
+        #features.append(int(pace.lower() in desc))
+        #features.append(int(length.lower() in desc))
 
-        return features
-    
-    def compute_label(self, sim, genre_match, same_author):
-        score = 0
+        #return features
 
-        if sim > 0.6 and genre_match:
-            return 1
-        if sim > 0.75:
-            return 1
-        return 0
-        #if sim > 0.5:
-            #score += 1
-        #if genre_match:
-            #score += 1
-        #if same_author:
-            #score += 1
-        #return 1 if score >= 1 else 0 
+    def extract_features(self, base_idx, i, similarity, genres, mood, pace, length):
+        base = self.df.iloc[base_idx]
+        book = self.df.iloc[i]
+
+        genre_match = int(str(genres).lower() in str(book["genres"]).lower())
+        author_match = int(str(base["Author"]) == str(book["Author"]))
+
+        return [
+            similarity,
+            genre_match,
+            author_match
+        ]
 
     #build dataset
-    def build_dataset(self, books, similarity_matrix, target_idx, genre, mood="", pace="", length=""):
+    def build_dataset(self, sims, target_idx=None, genre=None):
         X = []
         y = []
 
-        base_book = books[target_idx]
+        base_book = self.df.iloc[target_idx]
 
-    # similarity scores for target book
-        sims = list(enumerate(similarity_matrix[target_idx]))
-
-    # sort books by similarity (highest first)
-        sims_sorted = sorted(sims, key=lambda x: x[1], reverse=True)
-
-    # define top-k (top 30% as relevant)
-        #top_k = max(1, int(len(sims_sorted) * 0.3))
-
-        for rank, (i, sim) in enumerate(sims_sorted):
+        for i, similarity in enumerate(sims[target_idx]):
             if i == target_idx:
                 continue
 
-            book = books[i]
+            book = self.df.iloc[i]
 
-            features = self.extract_features(base_book, book, sim, genre, mood, pace, length)
+            genre_match = int(str(genre).lower() in str(book["genres"]).lower())
+            same_author = int(str(base_book["Author"]) == str(book["Author"]))
 
-            genre_match = int(genre.lower() in " ".join(book["categories"]).lower())
-            same_author = int(bool(set(book["authors"]) & set(base_book["authors"])))
-            label = self.compute_label(sim, genre_match, same_author)
+            features = [
+                similarity, 
+                genre_match,
+                same_author
+            ]
 
-        # top-k = relevant (1), rest = not relevant (0)
-            #label = 1 if rank < top_k else 0
+            label = 1 if similarity > 0.75 or genre_match else 0
 
             X.append(features)
             y.append(label)
-
-        #return np.array(X), np.array(y)
         return X, y
     
     #train and evaluate model
     def train_model(self, X, y):
         if len(set(y)) < 2:
             print("not enough label variety to train")
-            self.clf = None
+            self.model = None
             return
         
-        print("Label counts:", {0: list(y).count(0), 1: list(y).count(1)})
+        #print("Label counts:", {0: list(y).count(0), 1: list(y).count(1)})
 
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=0.2, random_state=42
@@ -193,148 +186,54 @@ class GoogleBooksRecommender:
         print("accuracy: ", round(accuracy_score(y_test, preds), 3))
         print("f1 score: ", round(f1_score(y_test, preds), 3))
 
-        self.clf = model
-
-    #NEW
-    #def compute_score(self, base_book, book, similarity, genre, mood="", pace="", length=""):
-        #score = similarity
-        #book_categories = " ".join(book["categories"]).lower()
-        #genre boost
-        #if genre.lower() in " ".join(book["categories"]).lower():
-            #score += 0.3
-        #author boost
-        #if set(book["authors"]) & set(base_book["authors"]):
-            #score += 0.4
-        #penalise missing
-        #if not book["categories"]:
-            #score -= 0.1
-
-        #return score
+        self.model = model
 
     #generate recommendations
     def recommend(self, favourite_book, genre, mood="", pace="", length="", max_results=5):
-        #query = f"{genre} books similar to {favourite_book}"
-        books = self.search_books(favourite_book, max_results=40)
-
-        #filter poor data
-        books =[
-            b for b in books
-            if b["description"] and len(b["description"]) > 50
-        ]
-
-        if not books:
-            return []
         
-        target_idx = self.best_match(books, favourite_book)
-        similarity = self.content_similarity(books)
-        #scores = list(enumerate(similarity[target_idx]))
+        target_idx = self.find_book_index(favourite_book)
 
-        X, y = self.build_dataset(books, similarity, target_idx, genre, mood, pace, length)
-        self.train_model(X,y)
-
-        base_book = books[target_idx]
-        base_isbn = base_book.get("isbn", "")
-        base_title = self.clean_title(base_book.get("title", ""))
-
-        if self.clf is None:
-            results = []
-            for i, book in enumerate(books):
-                if i == target_idx:
-                    continue
-                if book.get("isbn") == base_isbn and base_isbn != "":
-                    continue
-                results.append({
-                    "title": book["title"],
-                    "authors": book["authors"],
-                    "thumbnail": book.get("thumbnail", ""),
-                    "score": float(similarity[target_idx][i]),
-                    "explanation": {
-                        "similarity": round(similarity[target_idx][i], 2),
-                        "note": "based on similarity, fallback"
-                    }
-                })
-            return sorted(results, key=lambda x: x["score"], reverse=True)[:max_results]
+        sims = cosine_similarity(
+            [self.embeddings[target_idx]],
+            self.embeddings
+        )[0]
 
         results = []
 
-        for i, book in enumerate(books):
-            #book_isbn = book.get("isbn", "")
-            book_title = self.clean_title(book.get("title", ""))
+        base_author = str(self.df.iloc[target_idx]["Author"]).lower()
+
+        for i, similarity in enumerate(sims):
             if i == target_idx:
                 continue
 
-            if book.get("isbn") == base_isbn and base_isbn != "":
+            author = str(self.df.iloc[i]["Author"]).lower()
+            
+            if self.df.iloc[i]["Author"] == base_author:
                 continue
 
-            if base_title == book_title:
-                continue
+            features = self.extract_features(target_idx, i, similarity, genre, mood, pace, length)
 
-            if base_title in book_title or book_title in base_title:
-                continue
-
-            sim = similarity[target_idx][i]
-            features = self.extract_features(base_book, book, sim, genre, mood, pace, length)
-
-            #prob = float(self.clf.predict_proba([features])[0][1])
-            probs = self.clf.predict_proba([features])[0]
-            if len (probs) > 1:
-                prob = float(probs[1])
+            if self.model:
+                prob = self.model.predict_proba([features])[0][1]
+                score = 0.7 * prob + 0.3 * similarity
             else:
-                prob = float(probs[0])
-
-            final_score = float(0.7 * prob + 0.3 * sim)
-
-            desc = (book["description"] or "").lower()
-
-            genre_match = int(genre.lower() in " ".join(book["categories"]).lower())
-            same_author = int(bool(set(book["authors"]) & set(base_book["authors"])))
+                score = similarity 
+            
+            #if self.df.iloc[i]["Author"] == base_author:
+            if base_author in author or author in base_author:
+                continue
 
             results.append({
-                "title": book["title"],
-                "authors": book["authors"],
-                "thumbnail": book.get("thumbnail", ""),
-                "score": float(round(final_score, 3)),
+                "title": self.df.iloc[i]["Title"],
+                "authors": str(self.df.iloc[i]["Author"]).split("/"),
+                "genres": self.df.iloc[i]["genres"],
+                "score": float(score), 
                 "explanation": {
-                    "similarity": round(sim, 2),
-                    "genre_match": bool(genre_match),
-                    "same_author": bool(same_author),
-                    "matched_mood": mood.lower() in desc,
-                    "matched_pace": pace.lower() in desc,
-                    "matched_length": length.lower() in desc
+                    "similarity": round(float(similarity), 3),
+                    "genre_match": bool(str(genre).lower() in str(self.df.iloc[i]["genres"]).lower()),
                 }
             })
-
-        return sorted(results, key=lambda x: x["score"], reverse=True)[:max_results]
-    
-
-        #similarity = self.content_similarity(books)
-        #compares all books to initial criteria
-        #scores = list(enumerate(similarity[0]))
-        #sort by similarity
-        #scores = sorted(scores, key=lambda x: x[1], reverse=True)
-        #results = []
-        #for idx, score in scores[1:max_results+1]:
-            #book = books[idx]
-            #weight = score
-            #boost score if genre matches
-            #if genre.lower() in book["categories"].lower():
-                #weight += 0.3
-            #build results list
-            #results.append({
-                #"title": book["title"],
-                #"authors": book["authors"],
-                #"score": round(weight, 3)
-            #})
-        #return sorted(results, key=lambda x: x["score"], reverse=True)
+        results = sorted(results, key=lambda x: x["score"], reverse=True)
+        return results[:max_results]
 
 
-    #def recommend(self, query: str, max_results: int = 5):
-        #params = {"q": query, "maxResults": max_results}
-        #data = requests.get(self.BASE_URL, params=params).json()
-        #return [
-            #{
-                #"title": book["volumeInfo"].get("title"),
-                #"authors": book["volumeInfo"].get("authors", []),
-            #}
-            #for book in data.get("items", [])
-        #]
