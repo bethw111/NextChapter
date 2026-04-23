@@ -9,24 +9,51 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, f1_score
-#from sklearn.feature_extraction.text import TfidfVectorizer
 
 class GoogleBooksRecommender:
     #fetch books from Google Books API
     BASE_URL = "https://www.googleapis.com/books/v1/volumes"
 
-    #NEW
     def __init__(self, dataset_path="cleaned_books.csv", embeddings_path="book_embeddings.npy"):
         self.df = pd.read_csv(dataset_path)
         self.embeddings = np.load(embeddings_path)
-        self.model = None
-        #self.model = SentenceTransformer('all-MiniLM-L6-v2')
-        #self.clf = None
+        self.embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
+        self.ml_model = None
+        self.session_embedding = None
+    
+    def search_books(self, title):
+        url = "https://www.googleapis.com/books/v1/volumes"
+        params = {"q": title, "maxResults": 1}
+
+        res = requests.get(url, params=params).json()
+        items = res.get("items", [])
+
+        if not items:
+            return None
+        
+        info = items[0]["volumeInfo"]
+
+        return {
+            "title": info.get("title", ""),
+            "authors": info.get("authors", ["Unknown"]),
+            "description": info.get("description", "")
+        }
+    
+    def build_text(self, book):
+        return f"""
+        Title: {book.get('title', '')}
+        Authors: {' '.join(book.get('authors', []))}
+        Description: {book.get('description', '')}
+        """.strip()
+    
+    def session_book(self, book):
+        text = self.build_text(book)
+        self.session_embedding = self.embedding_model.encode([text])[0]
 
     def find_book_index(self, title):
         title = str(title).lower()
 
-        best_idx = 0
+        best_idx = -1
         best_score = 0
 
         for i, row in self.df.iterrows():
@@ -36,10 +63,14 @@ class GoogleBooksRecommender:
             if title == t:
                 return i
             if title in t or t in title:
-                score +=2
+                score +=1
             if score > best_score:
                 best_score = score
                 best_idx = i
+
+        if best_score < 2:
+            return -1
+        
         return best_idx 
     
     #take search query and calls API using requests
@@ -85,13 +116,6 @@ class GoogleBooksRecommender:
           #  if key not in unique :
            #     unique[key] = b
         #return list(unique.values())
-    
-    #find favourite book index
-   # def best_match(self, books, favourite_book):
-    #    for i, book in enumerate(books):
-     #       if favourite_book.lower() in book["title"].lower():
-      #          return i
-       # return 0
     
     #feature engineering
     #def extract_features(self, base_book, book, similarity, genre, mood="", pace="", length=""):
@@ -165,7 +189,7 @@ class GoogleBooksRecommender:
     def train_model(self, X, y):
         if len(set(y)) < 2:
             print("not enough label variety to train")
-            self.model = None
+            self.ml_model = None
             return
         
         #print("Label counts:", {0: list(y).count(0), 1: list(y).count(1)})
@@ -186,42 +210,66 @@ class GoogleBooksRecommender:
         print("accuracy: ", round(accuracy_score(y_test, preds), 3))
         print("f1 score: ", round(f1_score(y_test, preds), 3))
 
-        self.model = model
+        self.ml_model = model
 
     #generate recommendations
     def recommend(self, favourite_book, genre, mood="", pace="", length="", max_results=5):
         
         target_idx = self.find_book_index(favourite_book)
 
-        sims = cosine_similarity(
-            [self.embeddings[target_idx]],
-            self.embeddings
-        )[0]
+        #if book not in dataset
+        if target_idx == -1:
+            book = self.search_books(favourite_book)
+
+            if not book:
+                return []
+            
+            text = self.build_text(book)
+            query_vector = self.embedding_model.encode([text])[0]
+
+            base_authors = set(a.strip().lower() for a in book.get("authors", []))
+
+        #if book is in dataset
+        else:
+            query_vector = self.embeddings[target_idx]
+
+            base_authors = set(a.strip().lower for a in str(self.df.iloc[target_idx]["Author"]).split("/"))
+
+        #similarity
+        sims = cosine_similarity([query_vector], self.embeddings)[0]
 
         results = []
+        seen_authors = set()
 
-        base_author = str(self.df.iloc[target_idx]["Author"]).lower()
+        #base_author = str(self.df.iloc[target_idx]["Author"]).lower()
 
         for i, similarity in enumerate(sims):
             if i == target_idx:
                 continue
-
-            author = str(self.df.iloc[i]["Author"]).lower()
             
-            if self.df.iloc[i]["Author"] == base_author:
+            current_authors = set(a.strip().lower for a in str(self.df.iloc[i]["Author"]).split("/"))
+            #author = str(self.df.iloc[i]["Author"]).lower()
+            
+            #if self.df.iloc[i]["Author"] == base_author:
+            if base_authors & current_authors:
                 continue
+
+            if current_authors & seen_authors:
+                continue
+
+            seen_authors.update(current_authors)
 
             features = self.extract_features(target_idx, i, similarity, genre, mood, pace, length)
 
-            if self.model:
-                prob = self.model.predict_proba([features])[0][1]
+            if self.ml_model and target_idx != -1:
+                prob = self.ml_model.predict_proba([features])[0][1]
                 score = 0.7 * prob + 0.3 * similarity
             else:
                 score = similarity 
             
             #if self.df.iloc[i]["Author"] == base_author:
-            if base_author in author or author in base_author:
-                continue
+            #if base_author in author or author in base_author:
+                #continue
 
             results.append({
                 "title": self.df.iloc[i]["Title"],
