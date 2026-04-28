@@ -4,6 +4,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from recommender import GoogleBooksRecommender
 import requests
 from pydantic import BaseModel
+from database import insert_feedback
+import json
+from database import init_db
 
 app = FastAPI()
 app.add_middleware(
@@ -13,6 +16,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+init_db()
 recommender = GoogleBooksRecommender()
 
 @app.get("/search")
@@ -52,3 +56,19 @@ def recommend_by_preferences(request: PreferenceRequest):
         pace=request.pace,
         length=request.length
     )
+
+@app.post("/feedback")
+def feedback(data: dict):
+    insert_feedback(
+        data["favourite_book"],
+        data["recommended_book"],
+        data.get("genre"),
+        data.get("mood"),
+        data.get("pace"),
+        data.get("length"),
+        json.dumps(data["features"]),
+        data["label"]
+
+    )
+    
+    return {"status": "ok"}

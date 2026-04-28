@@ -68,7 +68,7 @@ class _BookRecommendationPageState extends State<BookRecommendationPage> {
           "mood": selectedMood,
           "pace": pace,
           "length": length,
-          //"features": (book["features"] is List) ? List<double>.from(book["features"]): <double>[],
+          "features": book["features"],
           "label": label,
         }),
       );
@@ -85,7 +85,10 @@ class _BookRecommendationPageState extends State<BookRecommendationPage> {
           title: const Text("How to use NextChapter"),
           content: const Text(
             "Here is how to use this page to find recommendations tailored to you! \n\n"
-            "abc",
+            "Select your preferences from the dropdowns shown in line with what you want to read next. \n\n"
+            "Be sure to select your favourite book, or one similar to what you are looking for next. \n\n"
+            "Then click 'Get Recommendations' and wait for your new favourite reads to appear. \n\n"
+            "Enjoy reading and discovering!",
           ),
           actions: [
             TextButton(
@@ -126,7 +129,6 @@ class _BookRecommendationPageState extends State<BookRecommendationPage> {
             return {
               "title": title,
               "authors": authors,
-              "thumbnail": info["imageLinks"]?["thumbnail"] ?? ""
               };
           }).toList();
         });
@@ -164,17 +166,20 @@ class _BookRecommendationPageState extends State<BookRecommendationPage> {
       );
 
       if (response.statusCode == 200) {
-        final data = json.decode(response.body) as List;
+        //final data = json.decode(response.body) as List;
+        final decoded = json.decode(response.body);
+        final List data = decoded is List ? decoded : decoded["recommendations"] ?? [];
 
         setState(() {
           //extract titles and convert to list of strings
-          recommendations = data.map((book) => {
+          //recommendations = data.map((book) => {
+          recommendations = List<Map<String, dynamic>>.from(
+            data.map((book) => {
             "title": book["title"] as String? ?? "No title",
             "authors": (book["authors"] as List?)?.join(", ") ?? "Unknown",
-            "thumbnail": book["thumbnail"] ?? "",
-            //"features": book["features"] ?? {},
             "explanation": book["explanation"] ?? {}
-          }).toList();
+          }),
+          );
         });
       //error handling
       } else {
@@ -386,16 +391,16 @@ class _BookRecommendationPageState extends State<BookRecommendationPage> {
 
             const SizedBox(height: 16),
 
-            TextField(
-              controller: recentReadsController,
-              decoration: const InputDecoration(
-                labelText: "Recent Reads",
-                filled: true,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.all(Radius.circular(12)),
-                ),
-              ),
-            ),
+            //TextField(
+            //  controller: recentReadsController,
+            //  decoration: const InputDecoration(
+            //    labelText: "Recent Reads",
+            //    filled: true,
+            //    border: OutlineInputBorder(
+            //      borderRadius: BorderRadius.all(Radius.circular(12)),
+            //    ),
+            //  ),
+            //),
 
             const SizedBox(height: 12),
 
@@ -482,20 +487,8 @@ class _BookRecommendationPageState extends State<BookRecommendationPage> {
                           child: ListTile(
                             contentPadding: const EdgeInsets.all(12),
 
-                            leading: recommendations[index]["thumbnail"] != null &&
-                                    recommendations[index]["thumbnail"] != ""
-                                ? ClipRRect(
-                                    borderRadius: BorderRadius.circular(6),
-                                    child: Image.network(
-                                      recommendations[index]["thumbnail"],
-                                      width: 40,
-                                      height: 65,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (context, error, stackTrace) =>
-                                        const Icon(Icons.book, color: Colors.deepPurple),
-                                  ),
-                                )
-                              :const Icon(Icons.book, color: Colors.deepPurple,),
+                            leading:
+                              const Icon(Icons.book, color: Colors.deepPurple,),
 
                             title: Text(
                               recommendations[index]["title"] ?? "No title",
@@ -511,7 +504,7 @@ class _BookRecommendationPageState extends State<BookRecommendationPage> {
                                 Builder(
                                   builder: (context) {
                                     final explanation =
-                                      recommendations[index]["explanation"] ?? {};
+                                      (recommendations[index]["explanation"] is Map) ? recommendations[index]["explanation"] as Map: {};
 
                                     return Text(
                                       "Why: "

@@ -5,11 +5,6 @@ import pandas as pd
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 
-from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, f1_score
-
 class GoogleBooksRecommender:
     #fetch books from Google Books API
     BASE_URL = "https://www.googleapis.com/books/v1/volumes"
@@ -21,6 +16,7 @@ class GoogleBooksRecommender:
         self.ml_model = None
         self.session_embedding = None
     
+    #users search books from google books api
     def search_books(self, title):
         url = "https://www.googleapis.com/books/v1/volumes"
         params = {"q": title, "maxResults": 1}
@@ -68,91 +64,30 @@ class GoogleBooksRecommender:
                 best_score = score
                 best_idx = i
 
-        if best_score < 2:
+        if best_score < 1:
             return -1
         
         return best_idx 
     
-    #take search query and calls API using requests
-    #def search_books(self, query, max_results=40):
-
-     #   queries = [
-      #      query,
-       #     f"{query} similar books",
-        #    f"best {query} books",
-         #   f"{query} novels"
-        #]
-#
-        #books = []
-
-        #for q in queries:
-         #   params = {"q": q, "maxResults": max_results}
-          #  data = requests.get(self.BASE_URL, params=params).json()
-
-            #extract key info for each book
-           # for item in data.get("items", []):
-            #    info = item["volumeInfo"]
-             #   industry_identifiers = info.get("industryIdentifiers", [])
-              #  isbn = next(
-               #     (i["identifier"] for i in industry_identifiers
-                #     if i.get("type") in ["ISBN_13", "ISBN_10"]),
-                 #    ""
-                #)
-                #thumbnail = info.get("imageLinks", {}).get("thumbnail", "")
-                #thumbnail = thumbnail.replace("http://", "https://")
-                #books.append({
-                 #   "title": info.get("title", ""),
-                  #  "authors": info.get("authors", []),
-                   # "description": info.get("description", ""),
-                    #"categories": info.get("categories", []),
-                    #"thumbnail": thumbnail,
-                    #"isbn": isbn
-                #})
-        
-        #unique = {b["title"]: b for b in books}
-        #unique = {}
-        #for b in books:
-         #   key = b["isbn"] if b["isbn"] else b["title"]
-          #  if key not in unique :
-           #     unique[key] = b
-        #return list(unique.values())
-    
-    #feature engineering
-    #def extract_features(self, base_book, book, similarity, genre, mood="", pace="", length=""):
-        #features = []
-
-        #semantic similarity
-        #features.append(similarity)
-
-        #genre match
-        #genre_match = int(genre.lower() in " ".join(book["categories"]).lower())
-        #features.append(genre_match)
-
-        #same author
-        #same_author = int(bool(set(book["authors"]) & set(base_book["authors"])))
-        #features.append(same_author)
-
-        #has categories
-        #has_category = int(bool(book["categories"]))
-        #features.append(has_category)
-
-        #desc = (book["description"] or "").lower()
-
-        #features.append(int(mood.lower() in desc))
-        #features.append(int(pace.lower() in desc))
-        #features.append(int(length.lower() in desc))
-
-        #return features
-
-    def extract_features(self, base_idx, i, similarity, genres, mood, pace, length):
-        base = self.df.iloc[base_idx]
+    def extract_features(self, base_idx, base_book, i, similarity, genres):
+        #base = self.df.iloc[base_idx] if base_idx != -1 else None
         book = self.df.iloc[i]
 
         genre_match = int(str(genres).lower() in str(book["genres"]).lower())
-        author_match = int(str(base["Author"]) == str(book["Author"]))
+        #author_match = int(str(base["Author"]) == str(book["Author"]))
+
+        #filter out same authors to avoid duplicate recommendations
+        if base_idx != -1:
+            base_author = str(self.df.iloc[base_idx]["Author"]).lower()
+            current_author = str(book["Author"]).lower()
+            author_match = int(base_author == current_author)
+        else:
+            base_authors = set(a.strip().lower() for a in base_book.get("authors", []))
+            current_authors = set(a.strip().lower() for a in str(book["Author"]).split("/"))
+            author_match = int(len(base_authors & current_authors) > 0)
 
         return [
-            similarity,
+            float(similarity),
             genre_match,
             author_match
         ]
@@ -185,37 +120,11 @@ class GoogleBooksRecommender:
             y.append(label)
         return X, y
     
-    #train and evaluate model
-    def train_model(self, X, y):
-        if len(set(y)) < 2:
-            print("not enough label variety to train")
-            self.ml_model = None
-            return
-        
-        #print("Label counts:", {0: list(y).count(0), 1: list(y).count(1)})
-
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=0.2, random_state=42
-        )
-
-        model = RandomForestClassifier(
-            n_estimators=100,
-            class_weight="balanced", 
-            random_state=42
-        )
-        model.fit(X_train, y_train)
-
-        preds = model.predict(X_test)
-
-        print("accuracy: ", round(accuracy_score(y_test, preds), 3))
-        print("f1 score: ", round(f1_score(y_test, preds), 3))
-
-        self.ml_model = model
-
     #generate recommendations
     def recommend(self, favourite_book, genre, mood="", pace="", length="", max_results=5):
         
         target_idx = self.find_book_index(favourite_book)
+        preffered_length = (length or "").lower()
 
         #if book not in dataset
         if target_idx == -1:
@@ -228,12 +137,14 @@ class GoogleBooksRecommender:
             query_vector = self.embedding_model.encode([text])[0]
 
             base_authors = set(a.strip().lower() for a in book.get("authors", []))
+            base_book = book
 
         #if book is in dataset
         else:
             query_vector = self.embeddings[target_idx]
 
-            base_authors = set(a.strip().lower for a in str(self.df.iloc[target_idx]["Author"]).split("/"))
+            base_authors = set(a.strip().lower() for a in str(self.df.iloc[target_idx]["Author"]).split("/"))
+            base_book = None
 
         #similarity
         sims = cosine_similarity([query_vector], self.embeddings)[0]
@@ -241,16 +152,21 @@ class GoogleBooksRecommender:
         results = []
         seen_authors = set()
 
-        #base_author = str(self.df.iloc[target_idx]["Author"]).lower()
-
         for i, similarity in enumerate(sims):
             if i == target_idx:
                 continue
-            
-            current_authors = set(a.strip().lower for a in str(self.df.iloc[i]["Author"]).split("/"))
-            #author = str(self.df.iloc[i]["Author"]).lower()
-            
-            #if self.df.iloc[i]["Author"] == base_author:
+
+            #only books written in english
+            language = str(self.df.iloc[i].get("language_code", "")).lower()
+            if language not in ["eng", "en-US"]:
+                continue
+
+            #books the same length as users preference
+            book_length = str(self.df.iloc[i].get("length", "")).lower()
+            length_match = 1 if preffered_length and preffered_length == book_length else 0
+        
+            current_authors = set(a.strip().lower() for a in str(self.df.iloc[i]["Author"]).split("/"))
+  
             if base_authors & current_authors:
                 continue
 
@@ -259,23 +175,27 @@ class GoogleBooksRecommender:
 
             seen_authors.update(current_authors)
 
-            features = self.extract_features(target_idx, i, similarity, genre, mood, pace, length)
+            if target_idx != -1:
+                #features = self.extract_features(target_idx, i, similarity, genre, mood, pace, length)
+                features = self.extract_features(base_idx=target_idx, base_book=None, i=i, similarity=similarity, genres=genre)
+            else:
+                #features = [similarity, int(str(genre).lower() in str(self.df.iloc[i]["genres"].lower())), 0]
+                features = self.extract_features(base_idx=-1, base_book=base_book, i=i, similarity=similarity, genres=genre)
 
-            if self.ml_model and target_idx != -1:
+            #use trained model
+            if self.ml_model:
                 prob = self.ml_model.predict_proba([features])[0][1]
                 score = 0.7 * prob + 0.3 * similarity
             else:
                 score = similarity 
+            score += 0.05 * length_match
             
-            #if self.df.iloc[i]["Author"] == base_author:
-            #if base_author in author or author in base_author:
-                #continue
-
             results.append({
                 "title": self.df.iloc[i]["Title"],
                 "authors": str(self.df.iloc[i]["Author"]).split("/"),
                 "genres": self.df.iloc[i]["genres"],
                 "score": float(score), 
+                "features": features,
                 "explanation": {
                     "similarity": round(float(similarity), 3),
                     "genre_match": bool(str(genre).lower() in str(self.df.iloc[i]["genres"]).lower()),
