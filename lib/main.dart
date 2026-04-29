@@ -177,7 +177,8 @@ class _BookRecommendationPageState extends State<BookRecommendationPage> {
             data.map((book) => {
             "title": book["title"] as String? ?? "No title",
             "authors": (book["authors"] as List?)?.join(", ") ?? "Unknown",
-            "explanation": book["explanation"] ?? {}
+            "explanation": book["explanation"] ?? {},
+            "features": book["features"],
           }),
           );
         });
