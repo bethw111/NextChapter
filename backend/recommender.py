@@ -199,6 +199,7 @@ class GoogleBooksRecommender:
                 "explanation": {
                     "similarity": round(float(similarity), 3),
                     "genre_match": bool(str(genre).lower() in str(self.df.iloc[i]["genres"]).lower()),
+                    "matched_length": bool(length_match)
                 }
             })
         results = sorted(results, key=lambda x: x["score"], reverse=True)

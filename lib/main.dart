@@ -39,7 +39,7 @@ class BookRecommendationPage extends StatefulWidget {
 class _BookRecommendationPageState extends State<BookRecommendationPage> {
   bool isLoading = false;
 
-  //user preferences
+  //default dropdown values
   String selectedMood = "Adventurous";
   String selectedGenre = "Fantasy";
   String pace = "Fast";
@@ -77,6 +77,7 @@ class _BookRecommendationPageState extends State<BookRecommendationPage> {
     }
   }
 
+//help page text
   void showHelpDialog(){
     showDialog(
       context: context,
@@ -84,7 +85,7 @@ class _BookRecommendationPageState extends State<BookRecommendationPage> {
         return AlertDialog(
           title: const Text("How to use NextChapter"),
           content: const Text(
-            "Here is how to use this page to find recommendations tailored to you! \n\n"
+            "Use this page to find recommendations tailored to you! \n\n"
             "Select your preferences from the dropdowns shown in line with what you want to read next. \n\n"
             "Be sure to select your favourite book, or one similar to what you are looking for next. \n\n"
             "Then click 'Get Recommendations' and wait for your new favourite reads to appear. \n\n"
@@ -172,7 +173,6 @@ class _BookRecommendationPageState extends State<BookRecommendationPage> {
 
         setState(() {
           //extract titles and convert to list of strings
-          //recommendations = data.map((book) => {
           recommendations = List<Map<String, dynamic>>.from(
             data.map((book) => {
             "title": book["title"] as String? ?? "No title",
@@ -467,6 +467,7 @@ class _BookRecommendationPageState extends State<BookRecommendationPage> {
 
             const SizedBox(height: 20),
 
+            //recommendations loading and view
             isLoading
             ? const Center(child: CircularProgressIndicator())
             : recommendations.isEmpty
@@ -506,8 +507,9 @@ class _BookRecommendationPageState extends State<BookRecommendationPage> {
                                     final explanation =
                                       (recommendations[index]["explanation"] is Map) ? recommendations[index]["explanation"] as Map: {};
 
+                                    //tells the user why the book was recommended
                                     return Text(
-                                      "Why: "
+                                      "Why this was recommended for you: "
                                       "${explanation["genre_match"] == true ? "Genre match • " : ""}"
                                       "${explanation["same_author"] == true ? "Same author • " : ""}"
                                       "${explanation["matched_mood"] == true ? "Fits your mood • " : ""}"
