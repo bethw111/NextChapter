@@ -1,6 +1,5 @@
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, f1_score, classification_report
-from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.linear_model import LogisticRegression
 import joblib
 import numpy as np
@@ -13,7 +12,7 @@ X = []
 y = []
 
 for i, row in enumerate(rows):
-    print(i, row["features"], row["label"])
+    #print(i, row["features"], row["label"])
     raw_features = row["features"]
 
     if raw_features is None:
@@ -26,8 +25,8 @@ for i, row in enumerate(rows):
     X.append(features)
     y.append(row["label"])
 
-print("samples:", len(y))
-print("labels:", {0: list(y).count(0), 1: list(y).count(1)})
+#print("samples:", len(y))
+#print("labels:", {0: list(y).count(0), 1: list(y).count(1)})
 
 if len(set(y)) < 2:
     print("needs both like and dislike labels to train")
@@ -43,7 +42,7 @@ X_train, X_test, y_train, y_test = train_test_split(
 )
 
 #train logistic regression model
-model = LogisticRegression()
+model = LogisticRegression(class_weight="balanced")
 model.fit(X_train, y_train)
 
 preds = model.predict(X_test)
@@ -55,3 +54,6 @@ f1 = f1_score(y_test, preds)
 print("accuracy:", round(accuracy, 3))
 print("f1 score:", round(f1, 3))
 print (classification_report(y_test, preds))
+
+joblib.dump(model, "model.pkl")
+print("model saved")

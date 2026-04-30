@@ -1,6 +1,8 @@
 import requests
 import numpy as np
 import pandas as pd
+import joblib
+import os 
 
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
@@ -13,9 +15,14 @@ class GoogleBooksRecommender:
         self.df = pd.read_csv(dataset_path)
         self.embeddings = np.load(embeddings_path)
         self.embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
-        self.ml_model = None
         self.session_embedding = None
-    
+
+        #load pretrained model
+        if os.path.exists("model.pkl"):
+            self.ml_model = joblib.load("model.pkl")
+        else:
+            self.ml_model = None
+
     #users search books from google books api
     def search_books(self, title):
         url = "https://www.googleapis.com/books/v1/volumes"

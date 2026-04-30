@@ -3,7 +3,6 @@ from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 from recommender import GoogleBooksRecommender
 import requests
-from pydantic import BaseModel
 from database import insert_feedback
 import json
 from database import init_db
