@@ -48,10 +48,6 @@ class GoogleBooksRecommender:
         Authors: {' '.join(book.get('authors', []))}
         Description: {book.get('description', '')}
         """.strip()
-    
-    def session_book(self, book):
-        text = self.build_text(book)
-        self.session_embedding = self.embedding_model.encode([text])[0]
 
     def find_book_index(self, title):
         title = str(title).lower()
@@ -77,11 +73,9 @@ class GoogleBooksRecommender:
         return best_idx 
     
     def extract_features(self, base_idx, base_book, i, similarity, genres):
-        #base = self.df.iloc[base_idx] if base_idx != -1 else None
         book = self.df.iloc[i]
 
         genre_match = int(str(genres).lower() in str(book["genres"]).lower())
-        #author_match = int(str(base["Author"]) == str(book["Author"]))
 
         #filter out same authors to avoid duplicate recommendations
         if base_idx != -1:
@@ -98,34 +92,6 @@ class GoogleBooksRecommender:
             genre_match,
             author_match
         ]
-
-    #build dataset
-    def build_dataset(self, sims, target_idx=None, genre=None):
-        X = []
-        y = []
-
-        base_book = self.df.iloc[target_idx]
-
-        for i, similarity in enumerate(sims[target_idx]):
-            if i == target_idx:
-                continue
-
-            book = self.df.iloc[i]
-
-            genre_match = int(str(genre).lower() in str(book["genres"]).lower())
-            same_author = int(str(base_book["Author"]) == str(book["Author"]))
-
-            features = [
-                similarity, 
-                genre_match,
-                same_author
-            ]
-
-            label = 1 if similarity > 0.75 or genre_match else 0
-
-            X.append(features)
-            y.append(label)
-        return X, y
     
     #generate recommendations
     def recommend(self, favourite_book, genre, mood="", pace="", length="", max_results=5):
@@ -183,10 +149,8 @@ class GoogleBooksRecommender:
             seen_authors.update(current_authors)
 
             if target_idx != -1:
-                #features = self.extract_features(target_idx, i, similarity, genre, mood, pace, length)
                 features = self.extract_features(base_idx=target_idx, base_book=None, i=i, similarity=similarity, genres=genre)
             else:
-                #features = [similarity, int(str(genre).lower() in str(self.df.iloc[i]["genres"].lower())), 0]
                 features = self.extract_features(base_idx=-1, base_book=base_book, i=i, similarity=similarity, genres=genre)
 
             #use trained model
