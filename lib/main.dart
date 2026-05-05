@@ -281,7 +281,11 @@ class _BookRecommendationPageState extends State<BookRecommendationPage> {
                   "Dark",
                   "Romantic",
                   "Inspirational",
-                  "Mysterious"
+                  "Mysterious",
+                  "Optimistic",
+                  "Suspensful",
+                  "Melancholic",
+                  "Reflective"
                 ]
                     .map((mood) =>
                         DropdownMenuItem(value: mood, child: Text(mood)))
@@ -307,11 +311,16 @@ class _BookRecommendationPageState extends State<BookRecommendationPage> {
                   ),
               items: [
                 "Fantasy",
-                "Sci-Fi",
+                "Science Fiction",
                 "Mystery",
                 "Romance",
                 "Thriller",
-                "Non-Fiction"
+                "Non-Fiction",
+                "Historical",
+                "Classics",
+                "Literary",
+                "Action",
+                "Young Adult"
               ]
                   .map((genre) =>
                       DropdownMenuItem(value: genre, child: Text(genre)))
@@ -512,11 +521,11 @@ class _BookRecommendationPageState extends State<BookRecommendationPage> {
                                     return Text(
                                       "Why this was recommended for you: "
                                       "${explanation["genre_match"] == true ? "Genre match • " : ""}"
-                                      "${explanation["same_author"] == true ? "Same author • " : ""}"
-                                      "${explanation["matched_mood"] == true ? "Fits your mood • " : ""}"
-                                      "${explanation["matched_pace"] == true ? "Right pace • " : ""}"
+                                      //"${explanation["same_author"] == true ? "Same author • " : ""}"
+                                      //"${explanation["matched_mood"] == true ? "Fits your mood • " : ""}"
+                                      //"${explanation["matched_pace"] == true ? "Right pace • " : ""}"
                                       "${explanation["matched_length"] == true ? "Good length • " : ""}"
-                                      "Similar content",
+                                      "Similar content to your selected book ",
                                       style: TextStyle(
                                         fontSize: 12,
                                         color: Colors.grey[600],
